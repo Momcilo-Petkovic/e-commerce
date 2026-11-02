@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { Package, ShieldCheck, MapPin, Heart, Gift, LayoutDashboard, Plus, ShoppingCart, Trash2, Clock } from 'lucide-react'
 import { api } from '../../lib/api'
 import { useApi } from '../../lib/useApi'
-import { formatDate } from '../../lib/format'
+import { formatDate, formatPhone } from '../../lib/format'
 import { useAuth } from '../../context/AuthContext'
 import { useCart } from '../../context/CartContext'
 import { useToast } from '../../context/ToastContext'
@@ -96,7 +96,7 @@ export function AddressesPage() {
               {a.line2 && <p>{a.line2}</p>}
               <p>{a.city}{a.state ? `, ${a.state}` : ''} {a.postalCode}</p>
               <p>{a.country}</p>
-              {a.phone && <p>Phone number: {a.phone}</p>}
+              {a.phone && <p>Phone number: {formatPhone(a.phone)}</p>}
             </div>
             <div className="flex flex-wrap gap-x-3 px-5 pb-4 text-sm">
               <button onClick={() => setEditing(a)} className="link">Edit</button>

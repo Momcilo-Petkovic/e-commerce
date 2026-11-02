@@ -1,25 +1,40 @@
 import { useState } from 'react'
+import { isValidPhoneNumber } from 'libphonenumber-js'
 import { api } from '../lib/api'
+import { COUNTRIES, countryByName, detectCountry } from '../lib/countries'
+import PhoneInput from './PhoneInput'
 
-const COUNTRIES = ['Serbia', 'United States', 'United Kingdom', 'Germany', 'France', 'Italy', 'Spain', 'Netherlands', 'Croatia', 'Bosnia and Herzegovina', 'Montenegro', 'North Macedonia', 'Slovenia', 'Austria', 'Switzerland', 'Canada', 'Australia']
-
-const EMPTY = { fullName: '', line1: '', line2: '', city: '', state: '', postalCode: '', country: 'Serbia', phone: '', makeDefault: false }
+const EMPTY = { fullName: '', line1: '', line2: '', city: '', state: '', postalCode: '', country: '', phone: '', makeDefault: false }
 
 /** Create / edit an address. Calls onSaved(address) after a successful save. */
 export default function AddressForm({ initial, onSaved, onCancel, submitLabel = 'Use this address' }) {
-  const [form, setForm] = useState(() => ({ ...EMPTY, ...initial, makeDefault: initial?.isDefault ?? false }))
+  const [form, setForm] = useState(() => ({
+    ...EMPTY,
+    country: detectCountry()?.name ?? 'United States',
+    ...initial,
+    phone: initial?.phone ?? '',
+    makeDefault: initial?.isDefault ?? false,
+  }))
   const [error, setError] = useState('')
+  const [phoneError, setPhoneError] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+  const countryCode = countryByName(form.country)?.code
 
   const submit = async (e) => {
     e.preventDefault()
-    setBusy(true)
     setError('')
+    // The phone number is optional, but if one is given it must be valid for its country.
+    if (form.phone && !isValidPhoneNumber(form.phone)) {
+      setPhoneError('Enter a valid phone number for the selected country')
+      return
+    }
+    setBusy(true)
     try {
+      const body = { ...form, phone: form.phone || null }
       const saved = initial?.id
-        ? await api(`/addresses/${initial.id}`, { method: 'PUT', body: form })
-        : await api('/addresses', { method: 'POST', body: form })
+        ? await api(`/addresses/${initial.id}`, { method: 'PUT', body })
+        : await api('/addresses', { method: 'POST', body })
       onSaved(saved)
     } catch (err) {
       setError(err.message)
@@ -33,9 +48,12 @@ export default function AddressForm({ initial, onSaved, onCancel, submitLabel = 
       {error && <p className="rounded-lg bg-rose-50 p-3 text-sm text-rose-700 ring-1 ring-rose-200">{error}</p>}
       <div>
         <label className="label" htmlFor="country">Country/Region</label>
-        <select id="country" className="input" value={form.country} onChange={set('country')}>
-          {!COUNTRIES.includes(form.country) && <option>{form.country}</option>}
-          {COUNTRIES.map((c) => <option key={c}>{c}</option>)}
+        <select id="country" className="input" value={form.country} onChange={set('country')} autoComplete="country-name">
+          {/* Keep a legacy value selectable if it is not in the standard list. */}
+          {form.country && !countryByName(form.country) && <option>{form.country}</option>}
+          {COUNTRIES.map((c) => (
+            <option key={c.code} value={c.name}>{c.name}</option>
+          ))}
         </select>
       </div>
       <div>
@@ -44,8 +62,21 @@ export default function AddressForm({ initial, onSaved, onCancel, submitLabel = 
       </div>
       <div>
         <label className="label" htmlFor="phone">Phone number</label>
-        <input id="phone" className="input" value={form.phone ?? ''} onChange={set('phone')} autoComplete="tel" />
-        <p className="mt-1 text-xs text-slate-500">May be used to assist delivery</p>
+        <PhoneInput
+          id="phone"
+          value={form.phone}
+          country={countryCode}
+          invalid={Boolean(phoneError)}
+          onChange={(phone) => {
+            setForm((f) => ({ ...f, phone }))
+            setPhoneError('')
+          }}
+        />
+        {phoneError ? (
+          <p className="mt-1 text-xs font-medium text-rose-700" role="alert">{phoneError}</p>
+        ) : (
+          <p className="mt-1 text-xs text-slate-500">Optional. May be used to assist delivery.</p>
+        )}
       </div>
       <div>
         <label className="label" htmlFor="line1">Address</label>

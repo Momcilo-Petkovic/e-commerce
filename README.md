@@ -4,7 +4,7 @@
 
 > Demo project: no real orders are fulfilled and no real payments are processed.
 
-**Stack:** Java 21 · Spring Boot 4 · Spring Security · Spring Data JPA / Hibernate · MariaDB · React 19 · Vite · React Router · Tailwind CSS 4
+**Stack:** Java 21 · Spring Boot 4 · Spring Security · Spring Data JPA / Hibernate · MariaDB · React 19 · Vite · React Router · Tailwind CSS 4 · libphonenumber
 
 ---
 
@@ -32,7 +32,7 @@
 | **Cart** | Guest cart merged into the account cart on sign-in, quantities, *Save for later*, free-delivery progress bar |
 | **Checkout** | Address book, three delivery speeds with dates, wheel rewards, tax, live order total, simulated card payments with real validation |
 | **Orders** | Order history with filters, order details, printable invoice, tracking timeline, cancel, return, *Buy it again* |
-| **Accounts** | Registration and login, account hub, address book, name/email/password management, Wish List, rewards |
+| **Accounts** | Registration and login, account hub, address book with international phone numbers, name/email/password management, Wish List, rewards |
 | **Wheel of Fortune** | One spin per account after sign-up; prizes are drawn on the server with configurable odds |
 | **Admin panel** | KPIs and a 14-day revenue chart, product management, order status management, customers, review moderation, wheel editor |
 
@@ -129,9 +129,19 @@ flowchart LR
 - On first start, `DataSeeder` loads 194 products with images, specifications and reviews from the MIT-licensed DummyJSON dataset, grouped into 24 categories across 7 departments. It also creates the demo accounts and the default wheel. A fixed random seed gives every fresh install the same best sellers.
 - Seeding is idempotent: each part is created only if it is missing, so restarts never duplicate data.
 
+### International addresses & phone numbers
+- **Every country:** the country list comes from libphonenumber's 245 supported regions, with English names from the browser's `Intl.DisplayNames` API, so no country list is maintained by hand. The default is guessed from the browser language (`sr-RS` → Serbia).
+- **Phone input** (`PhoneInput.jsx`): a searchable flag + dialling-code picker sits next to the number field. Flags are SVGs (`country-flag-icons`) because Windows does not render flag emojis.
+  - The placeholder is a real example mobile number for the selected country, e.g. `60 1234567` for Serbia (+381) or `1512 3456789` for Germany (+49).
+  - Numbers are formatted as they are typed (`AsYouType`), and national trunk prefixes are handled: `061 123456` with Serbia selected becomes `+38161123456`.
+  - Typing or pasting a number that starts with `+` switches the picker to the matching country.
+  - The picker follows the address country until a number is typed or a code is chosen manually, so changing the country never silently changes the meaning of an entered number.
+- **One canonical format:** numbers are sent and stored in **E.164** (`+38161123456`) and displayed formatted (`+381 61 123456`) on orders and address cards.
+- **Validated twice:** the form checks the number with `libphonenumber-js` before submitting, and the backend re-validates it with Google's Java `libphonenumber` (`PhoneNumbers` component), so invalid numbers cannot be saved through the API either. The server also accepts national formats (`064 1234567`, `(201) 555-0123`) and interprets them using the address country. Both are built on Google's phone-number metadata, so client and server apply the same rules.
+
 ### Error handling & validation
 - Request bodies are validated with Bean Validation (`@NotBlank`, `@Email`, `@Size`, …), and business rules throw `ApiException` with an HTTP status.
-- `GlobalExceptionHandler` turns every error into `{"message": "..."}`, which the frontend shows to the user. Unexpected errors are logged and return a generic message.
+- `GlobalExceptionHandler` turns every error into `{"message": "..."}`, which the frontend shows to the user. Malformed JSON returns `400 Bad Request`; unexpected errors are logged and return a generic `500` message.
 
 ---
 
@@ -297,7 +307,6 @@ e-commerce/
 - **Concurrency on stock:** two customers buying the last unit at the same moment could both succeed. Optimistic locking (`@Version`) or a conditional stock update would prevent overselling.
 - **Database migrations** with Flyway instead of `ddl-auto=update`.
 - **Automated tests:** service tests for pricing, rewards and the wheel draw; integration tests for the API.
-- **International phone numbers:** country dial-code picker with validation and E.164 storage.
 - **Real payment provider** (e.g. Stripe test mode) behind the existing `PaymentGateway` abstraction.
 - **Email notifications** for order confirmation and status changes, product Q&A, and caching for the home page.
 

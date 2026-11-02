@@ -1,6 +1,7 @@
 package com.e_commerce.backend.address;
 
 import com.e_commerce.backend.common.ApiException;
+import com.e_commerce.backend.common.PhoneNumbers;
 import com.e_commerce.backend.security.AuthUser;
 import com.e_commerce.backend.user.UserRepository;
 import jakarta.validation.Valid;
@@ -13,7 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-/** Address book ("Your Addresses"). The first address added becomes the default. */
+/** Address book ("Your Addresses"). The first address added becomes the default; phone numbers are validated and stored in E.164. */
 @RestController
 @RequestMapping("/api/addresses")
 @Transactional
@@ -27,7 +28,7 @@ public class AddressController {
                                  @NotBlank(message = "Enter a ZIP / postal code") @Size(max = 20) String postalCode,
                                  @NotBlank(message = "Choose a country") @Size(max = 100) String country,
                                  @Size(max = 30) String phone,
-                                 boolean makeDefault) {}
+                                 Boolean makeDefault) {}
 
     public record AddressDto(Long id, String fullName, String line1, String line2, String city, String state,
                              String postalCode, String country, String phone, boolean isDefault) {
@@ -39,10 +40,12 @@ public class AddressController {
 
     private final AddressRepository addresses;
     private final UserRepository users;
+    private final PhoneNumbers phoneNumbers;
 
-    public AddressController(AddressRepository addresses, UserRepository users) {
+    public AddressController(AddressRepository addresses, UserRepository users, PhoneNumbers phoneNumbers) {
         this.addresses = addresses;
         this.users = users;
+        this.phoneNumbers = phoneNumbers;
     }
 
     @GetMapping
@@ -61,7 +64,7 @@ public class AddressController {
         apply(address, req);
         boolean first = addresses.countByUserId(me.id()) == 0;
         address = addresses.save(address);
-        if (first || req.makeDefault()) {
+        if (first || Boolean.TRUE.equals(req.makeDefault())) {
             makeDefault(me.id(), address);
         }
         return AddressDto.from(address);
@@ -71,7 +74,7 @@ public class AddressController {
     public AddressDto update(@AuthenticationPrincipal AuthUser me, @PathVariable Long id, @Valid @RequestBody AddressRequest req) {
         Address address = find(me, id);
         apply(address, req);
-        if (req.makeDefault()) {
+        if (Boolean.TRUE.equals(req.makeDefault())) {
             makeDefault(me.id(), address);
         }
         return AddressDto.from(address);
@@ -106,7 +109,7 @@ public class AddressController {
                 .forEach(a -> a.setDefaultAddress(a.getId().equals(target.getId())));
     }
 
-    private static void apply(Address a, AddressRequest r) {
+    private void apply(Address a, AddressRequest r) {
         a.setFullName(r.fullName().trim());
         a.setLine1(r.line1().trim());
         a.setLine2(blankToNull(r.line2()));
@@ -114,7 +117,8 @@ public class AddressController {
         a.setState(blankToNull(r.state()));
         a.setPostalCode(r.postalCode().trim());
         a.setCountry(r.country().trim());
-        a.setPhone(blankToNull(r.phone()));
+        // Stored in E.164 so every number has the same canonical format regardless of how it was typed.
+        a.setPhone(phoneNumbers.normalize(r.phone(), r.country()));
     }
 
     private static String blankToNull(String s) {

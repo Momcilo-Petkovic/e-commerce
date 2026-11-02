@@ -109,7 +109,7 @@ public class DataSeeder implements ApplicationRunner {
             home.setCity("London");
             home.setPostalCode("NW1 6XE");
             home.setCountry("United Kingdom");
-            home.setPhone("+44 20 7946 0000");
+            home.setPhone("+442079460000");
             home.setDefaultAddress(true);
             addresses.save(home);
             log.info("Created demo customer account {}", demoEmail);

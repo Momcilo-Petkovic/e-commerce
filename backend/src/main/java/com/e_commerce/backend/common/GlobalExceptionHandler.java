@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -32,6 +33,12 @@ public class GlobalExceptionHandler {
                 .map(e -> e.getDefaultMessage())
                 .orElse("Invalid request");
         return ResponseEntity.badRequest().body(new ErrorResponse(message));
+    }
+
+    /** Malformed JSON or missing/invalid field types are client errors, not server errors. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex) {
+        return ResponseEntity.badRequest().body(new ErrorResponse("The request is malformed or missing required fields"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)

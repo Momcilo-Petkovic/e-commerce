@@ -1,3 +1,5 @@
+import { parsePhoneNumberFromString } from 'libphonenumber-js'
+
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 
 export const formatMoney = (value) => money.format(Number(value ?? 0))
@@ -20,6 +22,12 @@ export const formatDeliveryDate = (value) => {
 
 export const formatDateTime = (value) =>
   value ? new Date(value).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : ''
+
+/** Formats an E.164 number for display, e.g. "+38161123456" → "+381 61 123456". */
+export function formatPhone(value) {
+  if (!value) return ''
+  return parsePhoneNumberFromString(value)?.formatInternational() ?? value
+}
 
 export const formatCount = (n) => Number(n ?? 0).toLocaleString('en-US')
 

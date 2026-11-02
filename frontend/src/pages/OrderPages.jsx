@@ -3,7 +3,7 @@ import { Link, useLocation, useParams } from 'react-router-dom'
 import { CircleCheck, Package, Printer, RotateCcw, CircleX, Truck, House, Box, ClipboardCheck } from 'lucide-react'
 import { api } from '../lib/api'
 import { useApi } from '../lib/useApi'
-import { formatDate, formatDateTime, formatDeliveryDate, formatMoney, ORDER_STATUS_LABELS } from '../lib/format'
+import { formatDate, formatDateTime, formatDeliveryDate, formatMoney, formatPhone, ORDER_STATUS_LABELS } from '../lib/format'
 import { useCart } from '../context/CartContext'
 import { useToast } from '../context/ToastContext'
 import EmptyState, { ErrorState } from '../components/ui/EmptyState'
@@ -238,7 +238,7 @@ function AddressBlock({ a }) {
       {a.line1}{a.line2 && <>, {a.line2}</>}<br />
       {a.city}{a.state && `, ${a.state}`} {a.postalCode}<br />
       {a.country}
-      {a.phone && <><br />{a.phone}</>}
+      {a.phone && <><br />{formatPhone(a.phone)}</>}
     </address>
   )
 }
