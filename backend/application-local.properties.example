@@ -1,5 +1,15 @@
-# Local database credentials.
+# Local configuration and secrets.
 # Copy this file to "application-local.properties" in the same folder and fill in your values.
 # application-local.properties is git-ignored, so credentials never reach the repository.
 spring.datasource.username=YOUR_DB_USERNAME
 spring.datasource.password=YOUR_DB_PASSWORD
+
+# Secret used to sign login tokens (any random string of at least 32 characters).
+# If omitted, a random key is generated on each start and users are logged out after a restart.
+app.jwt.secret=CHANGE_ME_TO_A_LONG_RANDOM_STRING_OF_32+_CHARS
+
+# Optional: credentials of the demo accounts created on first start.
+# app.seed.admin-email=admin@e-commerce.dev
+# app.seed.admin-password=Admin123!
+# app.seed.demo-email=demo@e-commerce.dev
+# app.seed.demo-password=Demo123!
