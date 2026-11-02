@@ -23,9 +23,11 @@ export function setToken(token) {
 }
 
 export class ApiError extends Error {
-  constructor(status, message) {
+  /** `code` is the server's optional machine-readable reason, e.g. "EMAIL_NOT_VERIFIED". */
+  constructor(status, message, code) {
     super(message)
     this.status = status
+    this.code = code
   }
 }
 
@@ -74,7 +76,7 @@ export async function api(path, { method = 'GET', body, params } = {}) {
   }
   if (!res.ok) {
     const fallback = res.status === 401 ? 'Please sign in to continue' : 'Something went wrong. Please try again.'
-    throw new ApiError(res.status, data?.message || fallback)
+    throw new ApiError(res.status, data?.message || fallback, data?.code)
   }
   return data
 }

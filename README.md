@@ -32,7 +32,7 @@
 | **Cart** | Guest cart merged into the account cart on sign-in, quantities, *Save for later*, free-delivery progress bar |
 | **Checkout** | Address book, three delivery speeds with dates, wheel rewards, tax, live order total, simulated card payments with real validation |
 | **Orders** | Order history with filters, order details, printable invoice, tracking timeline, cancel, return, *Buy it again* |
-| **Accounts** | Registration and login, account hub, address book with international phone numbers, name/email/password management, Wish List, rewards |
+| **Accounts** | Registration with email verification codes, CAPTCHA-protected sign-up and sign-in, account hub, address book with international phone numbers, name/email/password management, Wish List, rewards |
 | **Wheel of Fortune** | One spin per account after sign-up; prizes are drawn on the server with configurable odds |
 | **Admin panel** | KPIs and a 14-day revenue chart, product management, order status management, customers, review moderation, wheel editor |
 
@@ -71,7 +71,20 @@ flowchart LR
 - **Tokens:** `TokenService` issues HMAC-SHA256 signed tokens in JWT format using only the JDK's `javax.crypto`, with no third-party JWT library. Signatures are compared in constant time (`MessageDigest.isEqual`) to avoid timing attacks. The signing secret comes from configuration. If none is set, a random key is generated at startup for local development.
 - **Request authentication:** `TokenAuthenticationFilter` validates the `Authorization: Bearer` header and **reloads the user from the database on every request**, so role changes and deleted accounts take effect immediately. The filter is deliberately not a Spring bean, so it runs only inside the security chain and never twice.
 - **Authorisation rules** (`SecurityConfig`): catalogue reads are public, cart/checkout/account endpoints require login, and `/api/admin/**` requires the `ADMIN` role. Sessions, CSRF, form login and HTTP Basic are disabled because the API is stateless.
-- **Account enumeration protection:** login returns the same message for an unknown email and a wrong password.
+- **Account enumeration protection:** login returns the same message for an unknown email and a wrong password, and the "resend code" endpoint answers the same way whether or not an account exists.
+
+### Email verification
+- **Flow:** sign-up creates an *unverified* account and emails a 6-digit code. Only `POST /api/auth/verify` with the correct code returns a login token, so unverified accounts cannot sign in (login answers `403` with the code `EMAIL_NOT_VERIFIED`, and the frontend redirects to the verification page with a fresh code).
+- **Code security** (`EmailVerificationService`): codes come from `SecureRandom` and are stored only as BCrypt hashes. They expire after 10 minutes, allow 5 wrong guesses (failed attempts are committed even though the request fails, using `noRollbackFor`), and can be resent once every 60 seconds.
+- **Abuse prevention:** the Wheel of Fortune opens only after verification, so free spins cannot be farmed with made-up email addresses.
+- **Sending** (`EmailService`): HTML + plain-text emails over SMTP with Spring's `JavaMailSender`, for example through Gmail with an App Password. Spring Boot only creates the mail sender when `spring.mail.host` is configured; without it, emails are written to the application log, so the full flow can be tried locally with no mail account.
+- **UI:** six single-digit inputs with auto-advance, backspace navigation, paste support and one-time-code autofill; the code submits itself when complete, and a resend link appears after the cooldown.
+- Accounts that existed before verification was added are treated as verified (a column default), and the seeded demo accounts are created verified.
+
+### CAPTCHA (Cloudflare Turnstile)
+- Sign-up and sign-in are protected by **Cloudflare Turnstile**, a free CAPTCHA that usually passes without any puzzle.
+- The widget (`Turnstile.jsx`) produces a single-use token that is sent with the form; `CaptchaVerifier` confirms it with Cloudflare's `siteverify` API using the secret key before any account logic runs. Calling the API directly without a valid token therefore fails.
+- The site key is served by the backend (`GET /api/config`), so both keys are configured in one place. Cloudflare's public test keys are the defaults, so the project runs on localhost out of the box; real keys go in `application-local.properties`.
 
 ### Product catalogue & faceted search
 - `ProductSearchService` builds queries with the **JPA Criteria API**, so every filter is optional and composable: keywords (each word must match title, brand, category or description), department, category, brands, price range, minimum rating, deals only and in stock.
@@ -106,7 +119,7 @@ flowchart LR
 - **One spin per account:** enforced by a `wheelSpun` flag on the user. A second attempt returns `409 Conflict`. Admins can grant another spin.
 - **Rewards:** the prize becomes a `Reward` valid for 30 days. Percentage and free-item rewards apply to *one unit* of an item the customer picks at checkout; free delivery zeroes the shipping cost. Cancelling an order releases the reward so it can be used again.
 - **Animation:** the wheel is an SVG drawn from the configured segments. After the server responds, the frontend calculates the rotation that brings the winning slice under the pointer (several full turns + offset + a small random jitter inside the slice) and animates it with a CSS transition, followed by a confetti effect.
-- The wheel opens automatically right after registration and is also available from *Your Rewards* while the spin is unused.
+- The wheel opens automatically once a new customer has verified their email, and is also available from *Your Rewards* while the spin is unused.
 
 ### Orders & tracking
 - An order stores **snapshots** of the delivery address, item titles, images and prices, so later edits to products or the address book never change past orders. Order numbers are human-friendly (`EC-261102-482913`) and checked for uniqueness.
@@ -149,7 +162,8 @@ flowchart LR
 
 | Method & path | Description | Access |
 |---|---|---|
-| `POST /api/auth/register`, `POST /api/auth/login`, `GET /api/auth/me` | Registration, login, current user | Public / user |
+| `POST /api/auth/register`, `/verify`, `/resend`, `/login`, `GET /api/auth/me` | Sign-up, email verification, login, current user | Public / user |
+| `GET /api/config` | Public runtime settings (CAPTCHA site key) | Public |
 | `GET /api/home`, `GET /api/categories` | Home page data, departments | Public |
 | `GET /api/products` | Faceted search (`q`, `department`, `category`, `brand`, `minPrice`, `maxPrice`, `minRating`, `deals`, `inStock`, `sort`, `page`) | Public |
 | `GET /api/products/{id}`, `/suggest`, `/deals`, `/by-ids` | Product page, suggestions, deals, batch lookup | Public |
@@ -217,6 +231,8 @@ cd backend
 
 The schema is created automatically and demo data is loaded on first start. The API runs on http://localhost:8080.
 
+**Email verification codes:** without SMTP settings, verification emails are printed in the backend console, so you can copy the code from there. To send real emails, add the Gmail settings shown in `application-local.properties.example` (this needs a Google App Password).
+
 ### 4. Run the frontend
 
 ```bash
@@ -234,7 +250,7 @@ Open http://localhost:5173.
 | Customer | demo@e-commerce.dev | Demo123! |
 | Admin | admin@e-commerce.dev | Admin123! |
 
-Or create a new account to spin the Wheel of Fortune.
+Both are already verified. Or create a new account, verify your email and spin the Wheel of Fortune.
 
 ### Test cards
 
@@ -265,6 +281,9 @@ Spring Boot then serves both the React app and the API from http://localhost:808
 | `app.jwt.ttl-hours` | `168` | Token lifetime |
 | `app.checkout.tax-rate` | `0.08` | Sales tax |
 | `app.fulfilment.simulate` | `true` | Automatic order status progression |
+| `spring.mail.*`, `app.mail.from` | not set (log only) | SMTP server for verification emails |
+| `app.turnstile.enabled` | `true` | CAPTCHA on sign-up and sign-in |
+| `app.turnstile.site-key`, `app.turnstile.secret-key` | Cloudflare test keys | Turnstile keys |
 | `app.seed.*` | see example file | Demo account credentials |
 
 ---

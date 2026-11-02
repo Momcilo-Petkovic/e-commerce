@@ -98,11 +98,15 @@ public class DataSeeder implements ApplicationRunner {
             seedCatalog();
         }
         if (!users.existsByEmailIgnoreCase(adminEmail)) {
-            users.save(new User(adminEmail, passwordEncoder.encode(adminPassword), "Store Admin", Role.ADMIN));
+            User admin = new User(adminEmail, passwordEncoder.encode(adminPassword), "Store Admin", Role.ADMIN);
+            admin.setEmailVerified(true);
+            users.save(admin);
             log.info("Created admin account {}", adminEmail);
         }
         if (!users.existsByEmailIgnoreCase(demoEmail)) {
-            User demo = users.save(new User(demoEmail, passwordEncoder.encode(demoPassword), "Demo Customer", Role.CUSTOMER));
+            User demoUser = new User(demoEmail, passwordEncoder.encode(demoPassword), "Demo Customer", Role.CUSTOMER);
+            demoUser.setEmailVerified(true);
+            User demo = users.save(demoUser);
             Address home = new Address(demo);
             home.setFullName("Demo Customer");
             home.setLine1("221B Baker Street");

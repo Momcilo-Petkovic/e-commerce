@@ -7,7 +7,7 @@ import ProductPage from './pages/ProductPage'
 import DealsPage from './pages/DealsPage'
 import CartPage from './pages/CartPage'
 import CheckoutPage from './pages/CheckoutPage'
-import { LoginPage, RegisterPage } from './pages/AuthPages'
+import { LoginPage, RegisterPage, VerifyEmailPage } from './pages/AuthPages'
 import { OrderConfirmationPage, OrderDetailPage, OrdersPage } from './pages/OrderPages'
 import { AccountPage, AddressesPage, RewardsPage, SecurityPage, WishlistPage } from './pages/account/AccountPages'
 import { AboutPage, NotFoundPage } from './pages/MiscPages'
@@ -43,6 +43,7 @@ export default function App() {
       {/* Focused pages without the store navigation */}
       <Route path="login" element={<LoginPage />} />
       <Route path="register" element={<RegisterPage />} />
+      <Route path="verify-email" element={<VerifyEmailPage />} />
       <Route path="checkout" element={secure(<CheckoutPage />)} />
 
       {/* Back office */}

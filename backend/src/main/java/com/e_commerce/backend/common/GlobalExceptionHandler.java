@@ -1,5 +1,6 @@
 package com.e_commerce.backend.common;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -11,19 +12,24 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 /**
- * Converts exceptions into a consistent JSON error body: {@code {"message": "..."}}.
- * The frontend displays this message directly to the user.
+ * Converts exceptions into a consistent JSON error body: {@code {"message": "...", "code": "..."}}.
+ * The frontend displays the message directly to the user; the optional code lets it react to specific cases.
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    public record ErrorResponse(String message) {}
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record ErrorResponse(String message, String code) {
+        public ErrorResponse(String message) {
+            this(message, null);
+        }
+    }
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ErrorResponse> handleApi(ApiException ex) {
-        return ResponseEntity.status(ex.getStatus()).body(new ErrorResponse(ex.getMessage()));
+        return ResponseEntity.status(ex.getStatus()).body(new ErrorResponse(ex.getMessage(), ex.getCode()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

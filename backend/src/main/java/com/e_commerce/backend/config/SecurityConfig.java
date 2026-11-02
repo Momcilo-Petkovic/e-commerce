@@ -39,8 +39,8 @@ public class SecurityConfig {
                 .httpBasic(b -> b.disable())
                 .formLogin(f -> f.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/login", "/api/auth/register").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/home", "/api/wheel/segments").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/register", "/api/auth/verify", "/api/auth/resend").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**", "/api/home", "/api/wheel/segments", "/api/config").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/**").authenticated()
                         .anyRequest().permitAll())

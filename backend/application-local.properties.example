@@ -8,6 +8,20 @@ spring.datasource.password=YOUR_DB_PASSWORD
 # If omitted, a random key is generated on each start and users are logged out after a restart.
 app.jwt.secret=CHANGE_ME_TO_A_LONG_RANDOM_STRING_OF_32+_CHARS
 
+# Optional: send real verification emails through Gmail.
+# Requires 2-step verification on the Google account and an App Password (Google Account → Security → App passwords).
+# spring.mail.host=smtp.gmail.com
+# spring.mail.port=587
+# spring.mail.username=your.address@gmail.com
+# spring.mail.password=YOUR_16_CHARACTER_APP_PASSWORD
+# spring.mail.properties.mail.smtp.auth=true
+# spring.mail.properties.mail.smtp.starttls.enable=true
+# app.mail.from=e-commerce <your.address@gmail.com>
+
+# Optional: real Cloudflare Turnstile keys (free at dash.cloudflare.com → Turnstile). Test keys are used otherwise.
+# app.turnstile.site-key=YOUR_SITE_KEY
+# app.turnstile.secret-key=YOUR_SECRET_KEY
+
 # Optional: credentials of the demo accounts created on first start.
 # app.seed.admin-email=admin@e-commerce.dev
 # app.seed.admin-password=Admin123!

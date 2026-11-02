@@ -7,13 +7,25 @@ public class ApiException extends RuntimeException {
 
     private final HttpStatus status;
 
+    /** Optional machine-readable reason (e.g. EMAIL_NOT_VERIFIED) the frontend can react to. */
+    private final String code;
+
     public ApiException(HttpStatus status, String message) {
+        this(status, message, null);
+    }
+
+    public ApiException(HttpStatus status, String message, String code) {
         super(message);
         this.status = status;
+        this.code = code;
     }
 
     public HttpStatus getStatus() {
         return status;
+    }
+
+    public String getCode() {
+        return code;
     }
 
     public static ApiException notFound(String what) {

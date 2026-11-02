@@ -25,6 +25,13 @@ public class User {
     @Column(nullable = false)
     private Role role = Role.CUSTOMER;
 
+    /**
+     * Set once the customer confirms the code sent to their email. The column default marks accounts
+     * that existed before verification was introduced as verified.
+     */
+    @Column(nullable = false, columnDefinition = "boolean not null default true")
+    private boolean emailVerified = false;
+
     /** Each account gets exactly one spin of the Wheel of Fortune. */
     @Column(nullable = false)
     private boolean wheelSpun = false;
@@ -50,6 +57,8 @@ public class User {
     public void setFullName(String fullName) { this.fullName = fullName; }
     public Role getRole() { return role; }
     public void setRole(Role role) { this.role = role; }
+    public boolean isEmailVerified() { return emailVerified; }
+    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
     public boolean isWheelSpun() { return wheelSpun; }
     public void setWheelSpun(boolean wheelSpun) { this.wheelSpun = wheelSpun; }
     public Instant getCreatedAt() { return createdAt; }
