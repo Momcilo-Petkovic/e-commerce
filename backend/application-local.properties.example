@@ -1,0 +1,5 @@
+# Local database credentials.
+# Copy this file to "application-local.properties" in the same folder and fill in your values.
+# application-local.properties is git-ignored, so credentials never reach the repository.
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
