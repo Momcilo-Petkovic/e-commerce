@@ -104,7 +104,12 @@ export function LoginPage() {
       <div className="mt-4 rounded-xl bg-slate-50 p-4 text-xs text-slate-600 ring-1 ring-slate-200">
         <p className="mb-1 flex items-center gap-1 font-bold text-slate-800"><Info className="size-3.5" /> Demo accounts</p>
         <button type="button" className="link block" onClick={() => { setEmail('demo@e-commerce.dev'); setPassword('Demo123!') }}>Customer: demo@e-commerce.dev / Demo123!</button>
-        <button type="button" className="link block" onClick={() => { setEmail('admin@e-commerce.dev'); setPassword('Admin123!') }}>Admin: admin@e-commerce.dev / Admin123!</button>
+        {/* The admin password is private on the hosted demo, so the shortcut only appears when running locally. */}
+        {import.meta.env.DEV ? (
+          <button type="button" className="link block" onClick={() => { setEmail('admin@e-commerce.dev'); setPassword('Admin123!') }}>Admin: admin@e-commerce.dev / Admin123!</button>
+        ) : (
+          <p>Admin: available when you run the project locally (see the README)</p>
+        )}
       </div>
       <div className="my-6 flex items-center gap-3 text-xs text-slate-500">
         <span className="h-px flex-1 bg-slate-200" /> New to e-commerce? <span className="h-px flex-1 bg-slate-200" />
