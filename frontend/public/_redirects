@@ -1,4 +1,4 @@
 # Netlify: forward API calls to the Spring Boot backend on Render
-/api/*  https://e-commerce-api.onrender.com/api/:splat  200
+/api/*  https://e-commerce-px1n.onrender.com/api/:splat  200
 # Single-page app: every other route loads index.html (React Router handles it)
 /*  /index.html  200
