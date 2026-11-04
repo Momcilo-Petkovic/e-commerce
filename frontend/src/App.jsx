@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router-dom'
 import Layout from './components/layout/Layout'
 import RequireAuth from './components/RequireAuth'
+import ServerWakeBanner from './components/ServerWakeBanner'
 import HomePage from './pages/HomePage'
 import SearchPage from './pages/SearchPage'
 import ProductPage from './pages/ProductPage'
@@ -20,6 +21,8 @@ const secure = (element) => <RequireAuth>{element}</RequireAuth>
 
 export default function App() {
   return (
+    <>
+    <ServerWakeBanner />
     <Routes>
       {/* Store front with header and footer */}
       <Route element={<Layout />}>
@@ -57,5 +60,6 @@ export default function App() {
         <Route path="wheel" element={<AdminWheel />} />
       </Route>
     </Routes>
+    </>
   )
 }

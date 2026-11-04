@@ -4,6 +4,16 @@
 
 > Demo project: no real orders are fulfilled and no real payments are processed.
 
+## ▶ [Try the live demo: e-commerce-portfolio-website.netlify.app](https://e-commerce-portfolio-website.netlify.app/)
+
+No setup needed. Sign in with the demo customer **demo@e-commerce.dev / Demo123!**, or create your own account
+to get a verification code by email and spin the Wheel of Fortune. Use the [test cards](#test-cards) at checkout.
+
+- The demo runs on free hosting that sleeps when idle, so the **first load can take a minute or two**; a
+  *"Waking up the server…"* bar is shown meanwhile and the page fills in by itself.
+- Verification emails come from a free email service and **may land in your spam folder**.
+- The **admin panel** is private on the live demo. Run the project locally to try it with the seeded admin account.
+
 **Stack:** Java 21 · Spring Boot 4 · Spring Security · Spring Data JPA / Hibernate · MariaDB · React 19 · Vite · React Router · Tailwind CSS 4 · libphonenumber
 
 ---
@@ -16,6 +26,7 @@
 - [API overview](#api-overview)
 - [Data model](#data-model)
 - [Getting started](#getting-started)
+- [Live demo & hosting](#live-demo--hosting)
 - [Project structure](#project-structure)
 - [Possible improvements](#possible-improvements)
 - [Credits](#credits)
@@ -77,14 +88,14 @@ flowchart LR
 - **Flow:** sign-up creates an *unverified* account and emails a 6-digit code. Only `POST /api/auth/verify` with the correct code returns a login token, so unverified accounts cannot sign in (login answers `403` with the code `EMAIL_NOT_VERIFIED`, and the frontend redirects to the verification page with a fresh code).
 - **Code security** (`EmailVerificationService`): codes come from `SecureRandom` and are stored only as BCrypt hashes. They expire after 10 minutes, allow 5 wrong guesses (failed attempts are committed even though the request fails, using `noRollbackFor`), and can be resent once every 60 seconds.
 - **Abuse prevention:** the Wheel of Fortune opens only after verification, so free spins cannot be farmed with made-up email addresses.
-- **Sending** (`EmailService`): HTML + plain-text emails over SMTP with Spring's `JavaMailSender`, for example through Gmail with an App Password. Spring Boot only creates the mail sender when `spring.mail.host` is configured; without it, emails are written to the application log, so the full flow can be tried locally with no mail account.
+- **Sending** (`EmailService`): HTML + plain-text emails over SMTP with Spring's `JavaMailSender`, for example through Gmail with an App Password. Spring Boot only creates the mail sender when `spring.mail.host` is configured; without it, emails are written to the application log, so the full flow can be tried locally with no mail account. When `app.brevo.api-key` is set, emails go through [Brevo](https://www.brevo.com/)'s transactional API over HTTPS instead, which is how the hosted demo sends them (its free hosting blocks outgoing SMTP).
 - **UI:** six single-digit inputs with auto-advance, backspace navigation, paste support and one-time-code autofill; the code submits itself when complete, and a resend link appears after the cooldown.
 - Accounts that existed before verification was added are treated as verified (a column default), and the seeded demo accounts are created verified.
 
 ### CAPTCHA (Cloudflare Turnstile)
 - Sign-up and sign-in are protected by **Cloudflare Turnstile**, a free CAPTCHA that usually passes without any puzzle.
 - The widget (`Turnstile.jsx`) produces a single-use token that is sent with the form; `CaptchaVerifier` confirms it with Cloudflare's `siteverify` API using the secret key before any account logic runs. Calling the API directly without a valid token therefore fails.
-- The site key is served by the backend (`GET /api/config`), so both keys are configured in one place. Cloudflare's public test keys are the defaults, so the project runs on localhost out of the box; real keys go in `application-local.properties`.
+- The site key is served by the backend (`GET /api/config`), so both keys are configured in one place. Cloudflare's public test keys are the defaults, so the project runs on localhost out of the box (the widget then shows a *"For testing only"* label); real keys go in `application-local.properties` or, on a host, in environment variables. The live demo uses real keys.
 
 ### Product catalogue & faceted search
 - `ProductSearchService` builds queries with the **JPA Criteria API**, so every filter is optional and composable: keywords (each word must match title, brand, category or description), department, category, brands, price range, minimum rating, deals only and in stock.
@@ -251,6 +262,7 @@ Open http://localhost:5173.
 | Admin | admin@e-commerce.dev | Admin123! |
 
 Both are already verified. Or create a new account, verify your email and spin the Wheel of Fortune.
+The admin shortcut on the sign-in page only appears in development (`npm run dev`); on the live demo the admin password is private.
 
 ### Test cards
 
@@ -285,6 +297,52 @@ Spring Boot then serves both the React app and the API from http://localhost:808
 | `app.turnstile.enabled` | `true` | CAPTCHA on sign-up and sign-in |
 | `app.turnstile.site-key`, `app.turnstile.secret-key` | Cloudflare test keys | Turnstile keys |
 | `app.seed.*` | see example file | Demo account credentials |
+| `app.brevo.api-key`, `app.brevo.sender-email`, `app.brevo.sender-name` | not set | Send emails through Brevo's HTTPS API instead of SMTP |
+| `server.port` | `8080` (or `PORT`) | HTTP port; hosts like Render pass it in `PORT` |
+
+---
+
+## Live demo & hosting
+
+The live demo at **https://e-commerce-portfolio-website.netlify.app/** runs entirely on free tiers:
+
+| Part | Service | Notes |
+|---|---|---|
+| React frontend | [Netlify](https://www.netlify.com/) | Builds `frontend` on every push to `main` |
+| Spring Boot API | [Render](https://render.com/) | Docker web service built from `backend/Dockerfile`; sleeps after 15 minutes without traffic |
+| Database | [Aiven](https://aiven.io/) | Free MySQL 8 service (Hibernate creates the schema, the seeder loads the demo data) |
+| Verification emails | [Brevo](https://www.brevo.com/) | Transactional email API over HTTPS |
+| CAPTCHA | [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) | Real keys for the Netlify hostname |
+
+**How the pieces connect:** the frontend keeps calling relative `/api/...` URLs, and
+`frontend/public/_redirects` tells Netlify to forward them to the Render service, so no CORS setup is needed.
+The second rule sends every other path to `index.html`, so React Router deep links such as `/dp/42` survive a refresh.
+
+**Cold starts:** a sleeping Render service needs a minute or two to start. `lib/api.js` retries `GET` requests that
+fail with 502/503/504 (or get no response) for up to three minutes and dispatches a `server:waking` event, which
+`ServerWakeBanner` shows as a bar at the top of the page. Other methods are never retried, so an order or sign-up
+can't be sent twice.
+
+**Backend environment variables on Render** (Spring maps them to the properties above):
+
+| Variable | Value |
+|---|---|
+| `SPRING_DATASOURCE_URL` | `jdbc:mysql://<host>:<port>/ecommerce?sslMode=REQUIRED` |
+| `SPRING_DATASOURCE_DRIVER_CLASS_NAME` | `com.mysql.cj.jdbc.Driver` |
+| `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | Aiven login |
+| `APP_JWT_SECRET` | random string of 32+ characters |
+| `APP_SEED_ADMIN_PASSWORD` | private admin password |
+| `APP_BREVO_API_KEY` / `APP_BREVO_SENDER_EMAIL` | Brevo API key (transactional email permission only) and the verified sender |
+| `APP_TURNSTILE_SITE_KEY` / `APP_TURNSTILE_SECRET_KEY` | Turnstile keys for the Netlify hostname |
+| `JAVA_TOOL_OPTIONS` | `-Xmx300m -XX:+UseSerialGC` (fits the 512 MB free instance) |
+
+**Netlify build settings:** base directory `frontend`, build command `npm run build`, publish directory `frontend/dist`.
+
+**Free-tier limitations worth knowing:**
+- Emails are sent from a free Gmail address without a custom domain, so some providers file them as spam.
+  A real store would send from its own domain authenticated with SPF, DKIM and DMARC.
+- Brevo API keys expire after 90 days without use; if sign-up emails stop arriving, generate a new key and update `APP_BREVO_API_KEY`.
+- Render's free instance sleeps when idle and has a small CPU, hence the slow first load.
 
 ---
 
@@ -328,6 +386,7 @@ e-commerce/
 - **Automated tests:** service tests for pricing, rewards and the wheel draw; integration tests for the API.
 - **Real payment provider** (e.g. Stripe test mode) behind the existing `PaymentGateway` abstraction.
 - **Email notifications** for order confirmation and status changes, product Q&A, and caching for the home page.
+- **Production hosting** on an always-on instance with a custom domain, so emails are domain-authenticated and there are no cold starts.
 
 ---
 

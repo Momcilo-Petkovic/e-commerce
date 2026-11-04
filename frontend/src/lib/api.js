@@ -42,22 +42,66 @@ export function buildQuery(params = {}) {
   return qs ? `?${qs}` : ''
 }
 
+/*
+ * Waking up a sleeping backend.
+ * The hosted demo runs on a free plan that puts the backend to sleep when idle; the first requests
+ * afterwards fail with 502/503/504 (or no response) for a minute or two while it starts.
+ * GET requests are retried during that time, and a 'server:waking' event lets the UI show a banner.
+ * Other methods are not retried, so an order or sign-up can never be sent twice.
+ */
+const WAKE_STATUSES = new Set([502, 503, 504])
+const WAKE_TIMEOUT_MS = 3 * 60 * 1000
+let waitingRequests = 0
+
+function setWaking(delta) {
+  const before = waitingRequests
+  waitingRequests += delta
+  if ((before === 0) !== (waitingRequests === 0)) {
+    window.dispatchEvent(new CustomEvent('server:waking', { detail: waitingRequests > 0 }))
+  }
+}
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+async function fetchWithWakeRetry(url, options) {
+  const retry = options.method === 'GET'
+  const deadline = Date.now() + WAKE_TIMEOUT_MS
+  let waiting = false
+  try {
+    for (let attempt = 0; ; attempt++) {
+      let res = null
+      try {
+        res = await fetch(url, options)
+      } catch {
+        res = null // network error: treat like a sleeping server
+      }
+      const asleep = res === null || WAKE_STATUSES.has(res.status)
+      if (!asleep || !retry || Date.now() > deadline) {
+        if (res === null) throw new ApiError(0, 'Cannot reach the server. Please try again in a moment.')
+        return res
+      }
+      if (!waiting) {
+        waiting = true
+        setWaking(1)
+      }
+      await sleep(attempt === 0 ? 2000 : 4000)
+    }
+  } finally {
+    if (waiting) setWaking(-1)
+  }
+}
+
 export async function api(path, { method = 'GET', body, params } = {}) {
   const headers = {}
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
 
-  let res
-  try {
-    res = await fetch(`/api${path}${buildQuery(params)}`, {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
-  } catch {
-    throw new ApiError(0, 'Cannot reach the server. Check that the backend is running.')
-  }
+  const res = await fetchWithWakeRetry(`/api${path}${buildQuery(params)}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  })
 
   if (res.status === 401 && token) {
     // Token expired or revoked: sign the user out everywhere in the app.
