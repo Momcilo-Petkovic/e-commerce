@@ -10,6 +10,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Converts exceptions into a consistent JSON error body: {@code {"message": "...", "code": "..."}}.
@@ -50,6 +51,15 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ErrorResponse("You don't have access to this resource"));
+    }
+
+    /**
+     * The backend only serves /api/...; anything else (for example the host's health check on "/") is a plain 404,
+     * not a server error, so it is answered quietly instead of being logged with a stack trace.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ErrorResponse> handleNotFound(NoResourceFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponse("Not found"));
     }
 
     @ExceptionHandler(Exception.class)
