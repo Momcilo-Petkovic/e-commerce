@@ -15,7 +15,7 @@ export function NotFoundPage() {
 const STACK = [
   { icon: CodeXml, title: 'Spring Boot REST API', text: 'Java 21, Spring Boot, Spring Data JPA / Hibernate, Bean Validation' },
   { icon: ShieldCheck, title: 'Security', text: 'Spring Security, stateless HMAC-signed tokens, BCrypt passwords, role-based admin access' },
-  { icon: Database, title: 'MariaDB', text: 'Relational model for catalogue, carts, orders, reviews and rewards' },
+  { icon: Database, title: 'MariaDB / PostgreSQL', text: 'Relational model for catalogue, carts, orders, reviews and rewards; MariaDB locally, PostgreSQL in the live demo' },
   { icon: Palette, title: 'React + Tailwind CSS', text: 'Vite, React Router, responsive design system' },
 ]
 

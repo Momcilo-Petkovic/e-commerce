@@ -14,7 +14,7 @@ to get a verification code by email and spin the Wheel of Fortune. Use the [test
 - Verification emails come from a free email service and **may land in your spam folder**.
 - The **admin panel** is private on the live demo. Run the project locally to try it with the seeded admin account.
 
-**Stack:** Java 21 · Spring Boot 4 · Spring Security · Spring Data JPA / Hibernate · MariaDB · React 19 · Vite · React Router · Tailwind CSS 4 · libphonenumber
+**Stack:** Java 21 · Spring Boot 4 · Spring Security · Spring Data JPA / Hibernate · MariaDB (local) / PostgreSQL (live demo) · React 19 · Vite · React Router · Tailwind CSS 4 · libphonenumber
 
 ---
 
@@ -310,7 +310,7 @@ The live demo at **https://e-commerce-portfolio-website.netlify.app/** runs enti
 |---|---|---|
 | React frontend | [Netlify](https://www.netlify.com/) | Builds `frontend` on every push to `main` |
 | Spring Boot API | [Render](https://render.com/) | Docker web service built from `backend/Dockerfile`; sleeps after 15 minutes without traffic |
-| Database | [Aiven](https://aiven.io/) | Free MySQL 8 service (Hibernate creates the schema, the seeder loads the demo data) |
+| Database | [Aiven](https://aiven.io/) | Free PostgreSQL service (Hibernate creates the schema, the seeder loads the demo data) |
 | Verification emails | [Brevo](https://www.brevo.com/) | Transactional email API over HTTPS |
 | CAPTCHA | [Cloudflare Turnstile](https://www.cloudflare.com/products/turnstile/) | Real keys for the Netlify hostname |
 
@@ -327,14 +327,22 @@ can't be sent twice.
 
 | Variable | Value |
 |---|---|
-| `SPRING_DATASOURCE_URL` | `jdbc:mysql://<host>:<port>/ecommerce?sslMode=REQUIRED` |
-| `SPRING_DATASOURCE_DRIVER_CLASS_NAME` | `com.mysql.cj.jdbc.Driver` |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://<host>:<port>/defaultdb?sslmode=require` |
+| `SPRING_DATASOURCE_DRIVER_CLASS_NAME` | `org.postgresql.Driver` |
 | `SPRING_DATASOURCE_USERNAME` / `SPRING_DATASOURCE_PASSWORD` | Aiven login |
+| `SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE` | `5` (Aiven's free plan allows 20 connections) |
 | `APP_JWT_SECRET` | random string of 32+ characters |
 | `APP_SEED_ADMIN_PASSWORD` | private admin password |
 | `APP_BREVO_API_KEY` / `APP_BREVO_SENDER_EMAIL` | Brevo API key (transactional email permission only) and the verified sender |
 | `APP_TURNSTILE_SITE_KEY` / `APP_TURNSTILE_SECRET_KEY` | Turnstile keys for the Netlify hostname |
 | `JAVA_TOOL_OPTIONS` | `-Xmx300m -XX:+UseSerialGC` (fits the 512 MB free instance) |
+
+**One codebase, two databases:** locally the backend runs on MariaDB, and the live demo runs on PostgreSQL.
+Nothing in the code is tied to either one: every query is JPQL or a Spring Data method, Hibernate picks the SQL
+dialect from the connection, emails are stored lowercase and looked up case-insensitively (PostgreSQL compares
+text case-sensitively, MariaDB doesn't), and the schema comes from the entity classes. The demo first ran on Aiven's
+free MySQL plan. When Aiven announced in November 2026 that it was retiring that plan, moving to their free
+PostgreSQL plan only took a driver dependency and a few environment variables.
 
 **Netlify build settings:** base directory `frontend`, build command `npm run build`, publish directory `frontend/dist`.
 
